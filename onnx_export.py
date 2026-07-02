@@ -6,7 +6,7 @@ from stable_baselines3 import PPO
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, required=True)
-parser.add_argument("--save", type=str, default="ppo_robot.onnx")
+parser.add_argument("--save", type=str, default="output/ppo_robot.onnx")
 args = parser.parse_args()
 
 model = PPO.load(args.model)
