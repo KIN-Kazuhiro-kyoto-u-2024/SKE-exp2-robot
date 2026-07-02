@@ -1,4 +1,5 @@
 import argparse
+
 import numpy as np
 from stable_baselines3 import PPO
 
@@ -67,7 +68,9 @@ def print_result(name, counts, steps):
     print(f"Robot 0  : {counts[0]} wins")
     print(f"Robot 1  : {counts[1]} wins")
     print(f"Draw     : {counts['draw']}")
-    print(f"Robot0 win rate excl. draws : {counts[0] / max(counts[0] + counts[1], 1):.3f}")
+    print(
+        f"Robot0 win rate excl. draws : {counts[0] / max(counts[0] + counts[1], 1):.3f}"
+    )
     print(f"Robot0 win rate incl. draws : {counts[0] / max(episodes, 1):.3f}")
     print(f"Average steps : {float(np.mean(steps)):.2f}")
 
@@ -86,7 +89,9 @@ def main():
         b_counts, b_steps = eval_mpc_only(args.episodes, args.max_steps, args.seed)
         print_result("MPC only baseline", b_counts, b_steps)
 
-    r_counts, r_steps = eval_residual(args.model, args.episodes, args.max_steps, args.seed, render=args.render)
+    r_counts, r_steps = eval_residual(
+        args.model, args.episodes, args.max_steps, args.seed, render=args.render
+    )
     print_result("robot0 = MPC + residual PPO, robot1 = MPC only", r_counts, r_steps)
 
 

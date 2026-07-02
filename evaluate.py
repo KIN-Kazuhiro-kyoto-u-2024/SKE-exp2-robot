@@ -1,7 +1,9 @@
 import argparse
+
 import numpy as np
-from qr_back_game.env import BackQrGameEnv
+
 from qr_back_game.config import GameConfig
+from qr_back_game.env import BackQrGameEnv
 
 
 def run_episode(env):
@@ -28,7 +30,10 @@ def main():
         rewards.append(float(r))
     env.close()
     print("episodes", args.episodes)
-    print("winner_counts", {str(k): int(np.sum(np.array(winners) == k)) for k in [-1, 0, 1]})
+    print(
+        "winner_counts",
+        {str(k): int(np.sum(np.array(winners) == k)) for k in [-1, 0, 1]},
+    )
     print("mean_steps", float(np.mean(steps)))
     print("mean_reward", float(np.mean(rewards)))
 

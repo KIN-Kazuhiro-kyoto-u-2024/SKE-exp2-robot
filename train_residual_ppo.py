@@ -1,10 +1,9 @@
 import argparse
 
-from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.common.monitor import Monitor
-
 from shimmy import GymV21CompatibilityV0
+from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 from qr_back_game.config import GameConfig
 from qr_back_game.residual_env import ResidualPPOEnv
@@ -23,6 +22,7 @@ def make_env(seed=None):
         if seed is not None:
             env.seed(seed)
         return Monitor(env)
+
     return _init
 
 

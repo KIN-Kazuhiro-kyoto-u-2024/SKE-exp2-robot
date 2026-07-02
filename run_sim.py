@@ -1,7 +1,8 @@
 import argparse
 import time
-from qr_back_game.env import BackQrGameEnv
+
 from qr_back_game.config import GameConfig
+from qr_back_game.env import BackQrGameEnv
 
 
 def main():
@@ -22,7 +23,14 @@ def main():
             if not args.no_render:
                 env.render("human")
                 time.sleep(cfg.dt)
-        print({"episode": ep, "winner": info.get("winner"), "steps": info.get("step_count"), "reward": reward})
+        print(
+            {
+                "episode": ep,
+                "winner": info.get("winner"),
+                "steps": info.get("step_count"),
+                "reward": reward,
+            }
+        )
     env.close()
 
 

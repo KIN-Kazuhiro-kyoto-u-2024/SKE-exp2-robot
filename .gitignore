@@ -7,4 +7,6 @@ position_detection/*
 to_JetBot
 to_JetBot/*
 
+.vscode
+.vscode/*
 test.py
