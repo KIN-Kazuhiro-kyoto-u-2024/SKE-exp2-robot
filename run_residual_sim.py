@@ -11,8 +11,11 @@ from qr_back_game.residual_env import ResidualPPOEnv as ResidualEnv
 def run_one_episode(model, seed, args):
     env = ResidualEnv(render_mode="human")
 
-    if hasattr(env, "seed"):
+    try:
         env.seed(seed)
+    except AttributeError:
+        # print('env has no attribute "seed"')
+        pass
 
     obs = env.reset()
     done = False
@@ -31,8 +34,11 @@ def run_one_episode(model, seed, args):
 
         obs, reward, done, info = env.step(action)
 
-        if hasattr(env, "render"):
+        try:
             env.render()
+        except AttributeError:
+            # print('env has no attribute "render"')
+            pass
 
         print(
             f"seed={seed}, "
@@ -68,8 +74,11 @@ def run_one_episode(model, seed, args):
         if args.hold_seconds > 0:
             time.sleep(args.hold_seconds)
 
-    if hasattr(env, "close"):
+    try:
         env.close()
+    except AttributeError:
+        # print('env has no attribute "close"')
+        pass
 
     return {
         "seed": seed,
