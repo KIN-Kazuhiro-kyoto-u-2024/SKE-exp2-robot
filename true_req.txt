@@ -1,0 +1,6 @@
+Shimmy==2.0.1
+numpy==1.26.2
+stable_baselines3==2.8.0
+torch==2.8.0
+gym==0.26.2
+pygame==2.6.1

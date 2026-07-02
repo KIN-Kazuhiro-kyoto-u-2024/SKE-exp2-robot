@@ -1,12 +1,9 @@
-.venv
-.venv/*
-venv
-venv/*
-position_detection
-position_detection/*
-to_JetBot
-to_JetBot/*
+.venv/
+venv/
+position_detection/
+to_JetBot/
 
-.vscode
-.vscode/*
+__pycache__/
+
+.vscode/
 test.py
