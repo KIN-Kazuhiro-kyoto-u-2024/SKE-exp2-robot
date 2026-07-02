@@ -1,0 +1,10 @@
+.venv
+.venv/*
+venv
+venv/*
+position_detection
+position_detection/*
+to_JetBot
+to_JetBot/*
+
+test.py
