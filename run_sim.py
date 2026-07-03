@@ -7,7 +7,7 @@ from qr_back_game.env import BackQrGameEnv
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--episodes", type=int, default=1)
+    parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("--max-steps", type=int, default=500)
     args = parser.parse_args()
