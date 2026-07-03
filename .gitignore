@@ -1,7 +1,5 @@
 .venv/
 venv/
-position_detection/
-to_JetBot/
 
 __pycache__/
 

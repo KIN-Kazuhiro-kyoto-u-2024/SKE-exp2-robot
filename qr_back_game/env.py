@@ -1,22 +1,27 @@
-from typing import Dict, List, Optional
 import math
+from typing import Dict, List, Optional
 
 try:
     import gym
     from gym import spaces
 except ImportError:  # keeps headless tests usable before installing requirements.txt
+
     class _Env(object):
         pass
+
     class _Box(object):
         def __init__(self, low, high, dtype=None, shape=None):
             self.low = low
             self.high = high
             self.dtype = dtype
             self.shape = shape
+
     class _Spaces(object):
         Box = _Box
+
     class _Gym(object):
         Env = _Env
+
     gym = _Gym()
     spaces = _Spaces()
 import numpy as np
@@ -37,12 +42,17 @@ class BackQrGameEnv(gym.Env):
     No collision-prediction safety filter is applied. Actions from the
     policy/MPC are integrated directly.
     """
+
     metadata = {"render.modes": ["human", "rgb_array"]}
 
-    def __init__(self, cfg: Optional[GameConfig] = None, render_mode: Optional[str] = None):
+    def __init__(
+        self, cfg: Optional[GameConfig] = None, render_mode: Optional[str] = None
+    ):
         super().__init__()
         self.cfg = cfg or GameConfig()
-        high = np.array([self.cfg.field_w, self.cfg.field_h, math.pi] * 2, dtype=np.float32)
+        high = np.array(
+            [self.cfg.field_w, self.cfg.field_h, math.pi] * 2, dtype=np.float32
+        )
         low = np.array([0.0, 0.0, -math.pi] * 2, dtype=np.float32)
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         self.action_space = spaces.Box(
@@ -51,7 +61,10 @@ class BackQrGameEnv(gym.Env):
             dtype=np.float32,
         )
         self.render_mode = render_mode
-        self.controllers = [MPCController(self.cfg, self.cfg.mpc_seed), MPCController(self.cfg, self.cfg.mpc_seed + 1)]
+        self.controllers = [
+            MPCController(self.cfg, self.cfg.mpc_seed),
+            MPCController(self.cfg, self.cfg.mpc_seed + 1),
+        ]
         self.viewer = None
         self.seed(None)
         self.reset()
@@ -79,10 +92,13 @@ class BackQrGameEnv(gym.Env):
         return self._fixed_start_poses()
 
     def _fixed_start_poses(self) -> np.ndarray:
-        return np.array([
-            [0.75, self.cfg.field_h / 2.0, 0.0],
-            [2.25, self.cfg.field_h / 2.0, math.pi],
-        ], dtype=np.float64)
+        return np.array(
+            [
+                [0.75, self.cfg.field_h / 2.0, 0.0],
+                [2.25, self.cfg.field_h / 2.0, math.pi],
+            ],
+            dtype=np.float64,
+        )
 
     def reset(self):
         if bool(getattr(self.cfg, "random_start", False)):
@@ -128,14 +144,22 @@ class BackQrGameEnv(gym.Env):
             arr = np.asarray(action, dtype=np.float64).reshape(2, 2)
             actions = arr.copy()
             actions[:, 0] = np.clip(actions[:, 0], -self.cfg.max_v, self.cfg.max_v)
-            actions[:, 1] = np.clip(actions[:, 1], -self.cfg.max_omega, self.cfg.max_omega)
+            actions[:, 1] = np.clip(
+                actions[:, 1], -self.cfg.max_omega, self.cfg.max_omega
+            )
 
         self.last_actions = actions.copy()
 
         # i=0: 自分，i=1: 相手
         # それぞれの位置と向きを1ステップ分だけ更新し，位置をフィールド内に制限
         for i in range(2):
-            self.poses[i] = pose_step(self.poses[i], actions[i], self.cfg.dt, self.cfg.max_v, self.cfg.max_omega)
+            self.poses[i] = pose_step(
+                self.poses[i],
+                actions[i],
+                self.cfg.dt,
+                self.cfg.max_v,
+                self.cfg.max_omega,
+            )
             self.poses[i, 0] = float(np.clip(self.poses[i, 0], 0.0, self.cfg.field_w))
             self.poses[i, 1] = float(np.clip(self.poses[i, 1], 0.0, self.cfg.field_h))
             self.poses[i, 2] = wrap_angle(float(self.poses[i, 2]))
@@ -166,10 +190,12 @@ class BackQrGameEnv(gym.Env):
 
     def render(self, mode="human"):
         from .rendering import render_env
+
         return render_env(self, mode=mode)
 
     def close(self):
         if self.viewer is not None:
             import pygame
+
             pygame.quit()
             self.viewer = None

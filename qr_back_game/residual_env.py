@@ -10,6 +10,7 @@ The PPO action is normalized to [-1, 1]^2 and converted to
 
 clipped to the same limits as the base environment.
 """
+
 import math
 from typing import Optional
 
@@ -17,18 +18,23 @@ try:
     import gym
     from gym import spaces
 except ImportError:
+
     class _Env(object):
         pass
+
     class _Box(object):
         def __init__(self, low, high, shape=None, dtype=None):
             self.low = low
             self.high = high
             self.shape = shape
             self.dtype = dtype
+
     class _Spaces(object):
         Box = _Box
+
     class _Gym(object):
         Env = _Env
+
     gym = _Gym()
     spaces = _Spaces()
 
@@ -42,7 +48,9 @@ from .geometry import angle_to, point_in_rear_sector, wrap_angle
 class ResidualPPOEnv(gym.Env):
     """Gym env for training only robot0 residual over the MPC controller."""
 
-    def __init__(self, cfg: Optional[GameConfig] = None, render_mode: Optional[str] = None):
+    def __init__(
+        self, cfg: Optional[GameConfig] = None, render_mode: Optional[str] = None
+    ):
         super().__init__()
         self.cfg = cfg or GameConfig()
         self.base_env = BackQrGameEnv(cfg=self.cfg, render_mode=render_mode)
@@ -55,7 +63,7 @@ class ResidualPPOEnv(gym.Env):
 
         # Observation is robot0-centric and includes the MPC command.
         obs_dim = 11
-        #obs_dim = 18
+        # obs_dim = 18
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
@@ -84,14 +92,17 @@ class ResidualPPOEnv(gym.Env):
         before_rear_score = self._rear_score()
         before_dist = self._distance_to_opponent()
 
-        #自分と相手の行動を MPC により決定
+        # 自分と相手の行動を MPC により決定
         mpc_actions = self.base_env._compute_mpc_actions()
         self.last_mpc_actions = mpc_actions.copy()
 
-        residual = np.array([
-            self.cfg.rl_residual_v_scale * rl_action[0],
-            self.cfg.rl_residual_omega_scale * rl_action[1],
-        ], dtype=np.float64)
+        residual = np.array(
+            [
+                self.cfg.rl_residual_v_scale * rl_action[0],
+                self.cfg.rl_residual_omega_scale * rl_action[1],
+            ],
+            dtype=np.float64,
+        )
 
         # 自分（0）のみ強化学習の結果を residual として加算
         actions = mpc_actions.copy()
@@ -132,31 +143,39 @@ class ResidualPPOEnv(gym.Env):
         rel_world = p1[:2] - p0[:2]
         c = math.cos(-float(p0[2]))
         s = math.sin(-float(p0[2]))
-        rel_body = np.array([
-            c * rel_world[0] - s * rel_world[1],
-            s * rel_world[0] + c * rel_world[1],
-        ], dtype=np.float64)
+        rel_body = np.array(
+            [
+                c * rel_world[0] - s * rel_world[1],
+                s * rel_world[0] + c * rel_world[1],
+            ],
+            dtype=np.float64,
+        )
         dist = float(np.linalg.norm(rel_world))
         bearing = wrap_angle(angle_to(p0[:2], p1[:2]) - float(p0[2]))
         target_heading_rel = wrap_angle(float(p1[2]) - float(p0[2]))
-    
-        obs = np.array([
-            p0[0] / self.cfg.field_w,
-            p0[1] / self.cfg.field_h,
-            float(p0[2]),
-            p1[0] / self.cfg.field_w,
-            p1[1] / self.cfg.field_h,
-            float(p1[2]),
-            rel_body[0] / self.cfg.field_w,
-            rel_body[1] / self.cfg.field_h,
-            dist / max(self.cfg.field_w, self.cfg.field_h),
-            bearing,
-            target_heading_rel,
-        ], dtype=np.float32)
+
+        obs = np.array(
+            [
+                p0[0] / self.cfg.field_w,
+                p0[1] / self.cfg.field_h,
+                float(p0[2]),
+                p1[0] / self.cfg.field_w,
+                p1[1] / self.cfg.field_h,
+                float(p1[2]),
+                rel_body[0] / self.cfg.field_w,
+                rel_body[1] / self.cfg.field_h,
+                dist / max(self.cfg.field_w, self.cfg.field_h),
+                bearing,
+                target_heading_rel,
+            ],
+            dtype=np.float32,
+        )
         return obs
 
     def _distance_to_opponent(self) -> float:
-        return float(np.linalg.norm(self.base_env.poses[0, :2] - self.base_env.poses[1, :2]))
+        return float(
+            np.linalg.norm(self.base_env.poses[0, :2] - self.base_env.poses[1, :2])
+        )
 
     # 自分（0）が相手（1）の背後をどれだけうまく取れているかを表すスコアを計算（rear_score とよぶ）
     def _rear_score(self) -> float:
@@ -175,7 +194,16 @@ class ResidualPPOEnv(gym.Env):
         return 0.5 * (rear_align + 1.0) * range_score
 
     # rear_score や自分と相手の距離（before_dist, after_dist）をもとに報酬を決定する
-    def _compute_reward(self, rl_action, before_rear_score, after_rear_score, before_dist, after_dist, done, info) -> float:
+    def _compute_reward(
+        self,
+        rl_action,
+        before_rear_score,
+        after_rear_score,
+        before_dist,
+        after_dist,
+        done,
+        info,
+    ) -> float:
         reward = 0.0
         if info.get("winner") == 0:
             reward += 10.0
@@ -193,7 +221,9 @@ class ResidualPPOEnv(gym.Env):
         if after_dist < close_r:
             reward -= 0.25 * (close_r - after_dist) / max(close_r, 1e-6)
 
-        reward -= float(self.cfg.rl_residual_penalty) * float(np.sum(np.square(rl_action)))
+        reward -= float(self.cfg.rl_residual_penalty) * float(
+            np.sum(np.square(rl_action))
+        )
         return reward
 
     def render(self, mode="human"):

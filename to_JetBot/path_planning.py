@@ -3,8 +3,7 @@ import math
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-
-from .geometry import cell_of_xy, xy_of_cell
+from geometry import cell_of_xy, xy_of_cell
 
 Cell = Tuple[int, int]
 

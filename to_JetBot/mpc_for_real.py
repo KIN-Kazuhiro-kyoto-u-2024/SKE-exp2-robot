@@ -2,8 +2,8 @@ import math
 from typing import List, Tuple
 
 import numpy as np
-
-from .geometry import angle_to, has_won, pose_step, wrap_angle
+from geometry import angle_to, has_won, pose_step, wrap_angle
+from path_planning import plan_path_to_rear
 
 
 class MPCController:
@@ -137,3 +137,25 @@ class MPCController:
                 cost -= 140.0 / (t + 1)
                 break
         return float(cost)
+
+    def _compute_mpc_actions(self, poses0, poses1) -> np.ndarray:
+        path = self._compute_grid_path(poses0, poses1)
+        a0, _ = self.act(poses0, poses1, path)
+        return a0
+
+        # paths = [self._compute_grid_path(0), self._compute_grid_path(1)]
+        # self.last_paths = paths
+        # a0, _ = self.act(self.poses[0], self.poses[1], paths[0])
+        # a1, _ = self.act(self.poses[1], self.poses[0], paths[1])
+        # return np.vstack([a0, a1])
+
+    # 自分から相手の後方をめがけて経路探索
+    # preffered_y は A* アルゴリズムのパラメータ
+    def _compute_grid_path(self, poses0, poses1) -> List[np.ndarray]:
+        return plan_path_to_rear(
+            poses0,
+            poses1,
+            self.cfg,
+            avoid_xy=poses1[:2],
+            preferred_y=0.35,
+        )

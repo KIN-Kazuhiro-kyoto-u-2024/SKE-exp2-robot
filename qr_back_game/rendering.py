@@ -1,10 +1,13 @@
 import math
+
 import numpy as np
+
 from .geometry import unit
 
 
 def render_env(env, mode="human"):
     import pygame
+
     cfg = env.cfg
     scale = 260
     w_px, h_px = int(cfg.field_w * scale), int(cfg.field_h * scale)
@@ -32,7 +35,9 @@ def render_env(env, mode="human"):
     for idx, path in enumerate(env.last_paths):
         if len(path) >= 2:
             pts = [to_px(p) for p in path]
-            pygame.draw.lines(surf, (80, 150, 230) if idx == 0 else (230, 140, 80), False, pts, 2)
+            pygame.draw.lines(
+                surf, (80, 150, 230) if idx == 0 else (230, 140, 80), False, pts, 2
+            )
 
     # Rear sectors and robot rectangles.
     colors = [(40, 90, 220), (220, 70, 40)]
@@ -42,8 +47,12 @@ def render_env(env, mode="human"):
         # rear sector fan
         rear = th + math.pi
         fan = [to_px(xy)]
-        for a in np.linspace(rear - cfg.rear_sector_half_angle, rear + cfg.rear_sector_half_angle, 18):
-            fan.append(to_px(xy + cfg.rear_view_range * np.array([math.cos(a), math.sin(a)])))
+        for a in np.linspace(
+            rear - cfg.rear_sector_half_angle, rear + cfg.rear_sector_half_angle, 18
+        ):
+            fan.append(
+                to_px(xy + cfg.rear_view_range * np.array([math.cos(a), math.sin(a)]))
+            )
         if len(fan) > 2:
             pygame.draw.polygon(surf, (225, 225, 235), fan, 0)
 
@@ -59,7 +68,9 @@ def render_env(env, mode="human"):
             xy - f * cfg.robot_l / 2 + r * cfg.robot_w / 2,
         ]
         pygame.draw.polygon(surf, colors[i], [to_px(c) for c in corners])
-        pygame.draw.circle(surf, (70, 70, 70), to_px(xy), int(cfg.collision_radius * scale), 1)
+        pygame.draw.circle(
+            surf, (70, 70, 70), to_px(xy), int(cfg.collision_radius * scale), 1
+        )
         front = xy + f * cfg.robot_l * 0.75
         pygame.draw.line(surf, (20, 20, 20), to_px(xy), to_px(front), 3)
         qr = xy - f * cfg.robot_l / 2
@@ -67,6 +78,7 @@ def render_env(env, mode="human"):
 
     if mode == "human":
         import pygame
+
         pygame.display.flip()
         pygame.event.pump()
         return None
