@@ -152,7 +152,7 @@ class BackQrGameEnv(gym.Env):
 
         # i=0: 自分，i=1: 相手
         # それぞれの位置と向きを1ステップ分だけ更新し，位置をフィールド内に制限
-        for i in range(2):
+        for i in range(2 if self.cfg.enemy_moves else 1):
             self.poses[i] = pose_step(
                 self.poses[i],
                 actions[i],

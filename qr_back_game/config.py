@@ -55,6 +55,9 @@ class GameConfig:
     rl_residual_penalty: float = 0.015
     close_distance_penalty_radius: float = 0.24
 
+    # 相手が動くかどうか
+    enemy_moves: bool = True
+
     @property
     def grid_w(self) -> int:
         return int(round(self.field_w / self.cell_size))

@@ -13,6 +13,7 @@ def main():
     args = parser.parse_args()
 
     cfg = GameConfig(max_steps=args.max_steps)
+    # cfg = GameConfig(max_steps=args.max_steps, enemy_moves=False)
     env = BackQrGameEnv(cfg=cfg, render_mode=None if args.no_render else "human")
     for ep in range(args.episodes):
         obs = env.reset()

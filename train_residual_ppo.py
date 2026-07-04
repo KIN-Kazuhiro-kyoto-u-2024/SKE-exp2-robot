@@ -12,6 +12,7 @@ from qr_back_game.residual_env import ResidualPPOEnv
 def make_env(seed=None):
     def _init():
         cfg = GameConfig(random_start=True)
+        # cfg = GameConfig(random_start=True, enemy_moves=False)
 
         # python3.10 に移行するため使用ライブラリを変更（富田追加） #
         # GymV21CompatibilityV0 で gym 環境から gymnasium 環境に変換できる
