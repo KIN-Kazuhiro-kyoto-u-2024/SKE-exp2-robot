@@ -5,6 +5,7 @@ from stable_baselines3 import PPO
 
 from qr_back_game.config import GameConfig
 from qr_back_game.env import BackQrGameEnv
+from qr_back_game.residual_enemy_env import ResidualPPOWithEnemyEnv
 from qr_back_game.residual_env import ResidualPPOEnv
 
 
@@ -63,6 +64,37 @@ def eval_residual(model_path, episodes, max_steps, seed, render=False):
     return counts, steps_list
 
 
+def eval_residual_both(model_path, episodes, max_steps, seed, render=False):
+    cfg = GameConfig(random_start=True, max_steps=max_steps)
+    # cfg = GameConfig(random_start=True, max_steps=max_steps, enemy_moves=False)
+    env = ResidualPPOWithEnemyEnv(cfg=cfg, render_mode="human" if render else None)
+    model = PPO.load(model_path)
+    counts = {0: 0, 1: 0, "draw": 0}
+    steps_list = []
+    for ep in range(episodes):
+        env.seed(seed + ep)
+        obs, enemy_obs = env.reset(include_enemy=True)
+        done = False
+        info = {"winner": None}
+        step = 0
+        while not done and step < max_steps:
+            action, _ = model.predict(obs, deterministic=True)
+            enemy_action, _ = model.predict(enemy_obs, deterministic=True)
+            (obs, enemy_obs), _, done, info = env.step(action, enemy_action)
+            if render:
+                env.render()
+            step += 1
+        winner = info.get("winner")
+        if winner in (0, 1):
+            counts[winner] += 1
+        else:
+            counts["draw"] += 1
+        steps_list.append(step)
+        print(f"Episode {ep + 1:03d}: winner={winner}, steps={step}")
+    env.close()
+    return counts, steps_list
+
+
 def print_result(name, counts, steps):
     episodes = sum(counts.values())
     print(f"\n=== {name} ===")
@@ -91,10 +123,16 @@ def main():
         b_counts, b_steps = eval_mpc_only(args.episodes, args.max_steps, args.seed)
         print_result("MPC only baseline", b_counts, b_steps)
 
-    r_counts, r_steps = eval_residual(
+        r_counts, r_steps = eval_residual(
+            args.model, args.episodes, args.max_steps, args.seed, render=args.render
+        )
+        print_result(
+            "robot0 = MPC + residual PPO, robot1 = MPC only", r_counts, r_steps
+        )
+    r_counts, r_steps = eval_residual_both(
         args.model, args.episodes, args.max_steps, args.seed, render=args.render
     )
-    print_result("robot0 = MPC + residual PPO, robot1 = MPC only", r_counts, r_steps)
+    print_result("Both MPC + residual PPO", r_counts, r_steps)
 
 
 if __name__ == "__main__":

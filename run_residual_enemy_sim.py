@@ -7,10 +7,11 @@ from qr_back_game.config import GameConfig
 
 # ここは residual_env.py の実際のクラス名に合わせて変更してください
 # 例: class ResidualPPOEnv(...) なら下の行でOK
-from qr_back_game.residual_env import ResidualPPOEnv as ResidualEnv
+from qr_back_game.residual_enemy_env import ResidualPPOWithEnemyEnv as ResidualEnv
 
 
 def run_one_episode(model, seed, args):
+    enemy_PPO = args.enemy_ppo
     env = ResidualEnv(render_mode="human")
     # env = ResidualEnv(cfg=GameConfig(enemy_moves=False), render_mode="human")
 
@@ -20,7 +21,10 @@ def run_one_episode(model, seed, args):
         # print('env has no attribute "seed"')
         pass
 
-    obs = env.reset()
+    if enemy_PPO:
+        obs, enemy_obs = env.reset(True)
+    else:
+        obs = env.reset()
     done = False
     info = {}
 
@@ -33,9 +37,16 @@ def run_one_episode(model, seed, args):
 
     for step in range(args.max_steps):
 
-        action, _ = model.predict(obs, deterministic=args.deterministic)
+        if enemy_PPO:
+            action, _ = model.predict(obs, deterministic=args.deterministic)
+            enemy_action, _ = model.predict(enemy_obs, deterministic=args.deterministic)
+            (obs, enemy_obs), (reward, enemy_reward), done, info = env.step(
+                action, enemy_action
+            )
+        else:
+            action, _ = model.predict(obs, deterministic=args.deterministic)
 
-        obs, reward, done, info = env.step(action)
+            obs, reward, done, info = env.step(action)
 
         try:
             env.render()
@@ -45,10 +56,11 @@ def run_one_episode(model, seed, args):
 
         print(
             f"seed={seed}, "
-            f"step={step + 1:03d}, "
-            f"reward={reward:.3f}, "
-            f"done={done}, "
-            f"winner={info.get('winner', None)}"
+            + f"step={step + 1:03d}, "
+            + f"reward={reward:.3f}, "
+            + (f"enemy_reward={enemy_reward:.3f}, " if enemy_PPO else "")
+            + f"done={done}, "
+            + f"winner={info.get('winner', None)}"
         )
 
         time.sleep(dt_wall)
@@ -60,6 +72,8 @@ def run_one_episode(model, seed, args):
             print(f"winner: {info.get('winner', None)}")
             print(f"steps : {step + 1}")
             print(f"reward: {reward:.3f}")
+            if enemy_PPO:
+                print(f"enemy_reward: {enemy_reward:.3f}")
 
             if args.hold_seconds > 0:
                 print(f"holding window for {args.hold_seconds} seconds...")
@@ -100,6 +114,7 @@ def main():
     parser.add_argument("--fps", type=float, default=5.0)
     parser.add_argument("--hold-seconds", type=float, default=2.0)
     parser.add_argument("--deterministic", action="store_true")
+    parser.add_argument("--enemy-ppo", action="store_true")
     args = parser.parse_args()
 
     model = PPO.load(args.model)

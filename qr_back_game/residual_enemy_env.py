@@ -1,7 +1,7 @@
-"""Single-agent residual RL wrapper.
+"""Double-agent residual RL wrapper.
 
 robot0 is controlled by MPC + PPO residual.
-robot1 remains the original A* + MPC policy.
+robot1 is also controlled by MPC + PPO residual.
 
 The PPO action is normalized to [-1, 1]^2 and converted to
 [dv, d_omega]. The final robot0 command is
@@ -43,49 +43,24 @@ import numpy as np
 from .config import GameConfig
 from .env import BackQrGameEnv
 from .geometry import angle_to, point_in_rear_sector, wrap_angle
+from .residual_env import ResidualPPOEnv
 
 
-class ResidualPPOEnv(gym.Env):
-    """Gym env for training only robot0 residual over the MPC controller."""
+class ResidualPPOWithEnemyEnv(ResidualPPOEnv):
+    """学習後の確認専用"""
 
-    def __init__(
-        self, cfg: Optional[GameConfig] = None, render_mode: Optional[str] = None
-    ):
-        super().__init__()
-        self.cfg = cfg or GameConfig()
-        self.base_env = BackQrGameEnv(cfg=self.cfg, render_mode=render_mode)
-
-        self.action_space = spaces.Box(
-            low=np.array([-1.0, -1.0], dtype=np.float32),
-            high=np.array([1.0, 1.0], dtype=np.float32),
-            dtype=np.float32,
-        )
-
-        # Observation is robot0-centric and includes the MPC command.
-        obs_dim = 11
-        # obs_dim = 18
-        self.observation_space = spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(obs_dim,),
-            dtype=np.float32,
-        )
-
-        self.last_mpc_actions = np.zeros((2, 2), dtype=np.float64)
-        self.prev_rear_score = 0.0
-        self.prev_dist = 0.0
-
-    def seed(self, seed=None):
-        return self.base_env.seed(seed)
-
-    def reset(self):
+    def reset(self, include_enemy=False):
         self.base_env.reset()
         self.last_mpc_actions = self.base_env._compute_mpc_actions()
         self.prev_rear_score = self._rear_score()
         self.prev_dist = self._distance_to_opponent()
-        return self._get_obs()
+        return (
+            self._get_obs()
+            if not include_enemy
+            else (self._get_obs(robot=0), self._get_obs(robot=1))
+        )
 
-    def step(self, rl_action):
+    def step(self, rl_action, enemy_action=None):
         rl_action = np.asarray(rl_action, dtype=np.float64).reshape(2)
         rl_action = np.clip(rl_action, -1.0, 1.0)
 
@@ -109,7 +84,26 @@ class ResidualPPOEnv(gym.Env):
         actions[0] = actions[0] + residual
         actions[0, 0] = np.clip(actions[0, 0], -self.cfg.max_v, self.cfg.max_v)
         actions[0, 1] = np.clip(actions[0, 1], -self.cfg.max_omega, self.cfg.max_omega)
+
         # robot1 is intentionally left as MPC-only.
+        # ↑ if enemy_action is None. else:
+        if enemy_action is not None:
+            enemy_action = np.asarray(enemy_action, dtype=np.float64).reshape(2)
+            enemy_action = np.clip(enemy_action, -1.0, 1.0)
+            enemy_before_rear_score = self._rear_score(robot=1)
+            enemy_before_dist = self._distance_to_opponent(robot=1)
+            enemy_residual = np.array(
+                [
+                    self.cfg.rl_residual_v_scale * enemy_action[0],
+                    self.cfg.rl_residual_omega_scale * enemy_action[1],
+                ],
+                dtype=np.float64,
+            )
+            actions[1] = actions[1] + enemy_residual
+            actions[1, 0] = np.clip(actions[1, 0], -self.cfg.max_v, self.cfg.max_v)
+            actions[1, 1] = np.clip(
+                actions[1, 1], -self.cfg.max_omega, self.cfg.max_omega
+            )
 
         _, base_reward, done, info = self.base_env.step(actions)
 
@@ -125,10 +119,32 @@ class ResidualPPOEnv(gym.Env):
         info["mpc_actions"] = mpc_actions.copy()
         info["residual_action_norm"] = rl_action.copy()
         info["robot0_action_after_residual"] = actions[0].copy()
+        if enemy_action is not None:
+            info["enemy_residual_action_norm"] = enemy_action.copy()
+            info["robot1_action_after_residual"] = actions[1].copy()
+            enemy_reward = self._compute_reward(
+                rl_action=enemy_action,
+                before_rear_score=enemy_before_rear_score,
+                after_rear_score=self._rear_score(robot=1),
+                before_dist=enemy_before_dist,
+                after_dist=self._distance_to_opponent(robot=1),
+                done=done,
+                info=info,
+                robot=1,
+            )
         info["base_reward"] = base_reward
-        return self._get_obs(), float(reward), done, info
+        return (
+            (self._get_obs(), float(reward), done, info)
+            if enemy_action is None
+            else (
+                (self._get_obs(robot=0), self._get_obs(robot=1)),
+                (float(reward), float(enemy_reward)),
+                done,
+                info,
+            )
+        )
 
-    def _get_obs(self) -> np.ndarray:
+    def _get_obs(self, robot=0) -> np.ndarray:
 
         # p0: 自分の位置・向き（x0, y0, theta0）
         # p1: 相手の位置・向き（x1, y1, theta1）
@@ -138,8 +154,8 @@ class ResidualPPOEnv(gym.Env):
         # bearing: 相手がいる方向が，今自分が向いている方向からどれだけずれているか
         # target_heading_rel: 相手と自分の向きの違い
 
-        p0 = self.base_env.poses[0]
-        p1 = self.base_env.poses[1]
+        p0 = self.base_env.poses[robot]
+        p1 = self.base_env.poses[1 - robot]
         rel_world = p1[:2] - p0[:2]
         c = math.cos(-float(p0[2]))
         s = math.sin(-float(p0[2]))
@@ -172,16 +188,18 @@ class ResidualPPOEnv(gym.Env):
         )
         return obs
 
-    def _distance_to_opponent(self) -> float:
+    def _distance_to_opponent(self, robot=0) -> float:
         return float(
-            np.linalg.norm(self.base_env.poses[0, :2] - self.base_env.poses[1, :2])
+            np.linalg.norm(
+                self.base_env.poses[robot, :2] - self.base_env.poses[1 - robot, :2]
+            )
         )
 
-    # 自分（0）が相手（1）の背後をどれだけうまく取れているかを表すスコアを計算（rear_score とよぶ）
-    def _rear_score(self) -> float:
+    # 自分（デフォルト：0）が相手（デフォルト：1）の背後をどれだけうまく取れているかを表すスコアを計算（rear_score とよぶ）
+    def _rear_score(self, robot=0) -> float:
         """Smooth progress score for robot0 getting behind robot1."""
-        p0 = self.base_env.poses[0]
-        p1 = self.base_env.poses[1]
+        p0 = self.base_env.poses[robot]
+        p1 = self.base_env.poses[1 - robot]
         rel = p0[:2] - p1[:2]
         dist = float(np.linalg.norm(rel))
         if dist < 1e-9:
@@ -203,11 +221,12 @@ class ResidualPPOEnv(gym.Env):
         after_dist,
         done,
         info,
+        robot=0,
     ) -> float:
         reward = 0.0
-        if info.get("winner") == 0:
+        if info.get("winner") == robot:
             reward += 10.0
-        elif info.get("winner") == 1:
+        elif info.get("winner") == 1 - robot:
             reward -= 10.0
         elif done:
             reward -= 1.0
@@ -225,9 +244,3 @@ class ResidualPPOEnv(gym.Env):
             np.sum(np.square(rl_action))
         )
         return reward
-
-    def render(self, mode="human"):
-        return self.base_env.render(mode=mode)
-
-    def close(self):
-        self.base_env.close()
