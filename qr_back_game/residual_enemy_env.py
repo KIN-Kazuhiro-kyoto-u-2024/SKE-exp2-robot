@@ -12,42 +12,15 @@ clipped to the same limits as the base environment.
 """
 
 import math
-from typing import Optional
-
-try:
-    import gym
-    from gym import spaces
-except ImportError:
-
-    class _Env(object):
-        pass
-
-    class _Box(object):
-        def __init__(self, low, high, shape=None, dtype=None):
-            self.low = low
-            self.high = high
-            self.shape = shape
-            self.dtype = dtype
-
-    class _Spaces(object):
-        Box = _Box
-
-    class _Gym(object):
-        Env = _Env
-
-    gym = _Gym()
-    spaces = _Spaces()
 
 import numpy as np
 
-from .config import GameConfig
-from .env import BackQrGameEnv
-from .geometry import angle_to, point_in_rear_sector, wrap_angle
+from .geometry import angle_to, wrap_angle
 from .residual_env import ResidualPPOEnv
 
 
 class ResidualPPOWithEnemyEnv(ResidualPPOEnv):
-    """学習後の確認専用"""
+    """Gym env for training only robot0 residual over the MPC/PPO controller."""
 
     def reset(self, include_enemy=False):
         self.base_env.reset()
