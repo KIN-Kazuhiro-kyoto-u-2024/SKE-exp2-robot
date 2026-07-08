@@ -10,6 +10,7 @@ from qr_back_game.residual_env import ResidualPPOEnv
 
 def eval_mpc_only(episodes, max_steps, seed):
     cfg = GameConfig(random_start=True, max_steps=max_steps)
+    # cfg = GameConfig(random_start=True, max_steps=max_steps, enemy_moves=False)
     env = BackQrGameEnv(cfg=cfg, render_mode=None)
     counts = {0: 0, 1: 0, "draw": 0}
     steps_list = []
@@ -34,6 +35,7 @@ def eval_mpc_only(episodes, max_steps, seed):
 
 def eval_residual(model_path, episodes, max_steps, seed, render=False):
     cfg = GameConfig(random_start=True, max_steps=max_steps)
+    # cfg = GameConfig(random_start=True, max_steps=max_steps, enemy_moves=False)
     env = ResidualPPOEnv(cfg=cfg, render_mode="human" if render else None)
     model = PPO.load(model_path)
     counts = {0: 0, 1: 0, "draw": 0}

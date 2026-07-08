@@ -3,6 +3,8 @@ import time
 
 from stable_baselines3 import PPO
 
+from qr_back_game.config import GameConfig
+
 # ここは residual_env.py の実際のクラス名に合わせて変更してください
 # 例: class ResidualPPOEnv(...) なら下の行でOK
 from qr_back_game.residual_env import ResidualPPOEnv as ResidualEnv
@@ -10,6 +12,7 @@ from qr_back_game.residual_env import ResidualPPOEnv as ResidualEnv
 
 def run_one_episode(model, seed, args):
     env = ResidualEnv(render_mode="human")
+    # env = ResidualEnv(cfg=GameConfig(enemy_moves=False), render_mode="human")
 
     try:
         env.seed(seed)
