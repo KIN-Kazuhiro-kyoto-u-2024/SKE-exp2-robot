@@ -81,6 +81,7 @@ def render_env(env, mode="human"):
 
         pygame.display.flip()
         pygame.event.pump()
+        # pygame.image.save(env.viewer, f"fig/img{env.step_count:03d}.png")
         return None
     arr = pygame.surfarray.array3d(surf)
     return np.transpose(arr, (1, 0, 2))
