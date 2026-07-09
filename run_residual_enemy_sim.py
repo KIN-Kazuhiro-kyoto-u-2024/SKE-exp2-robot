@@ -10,8 +10,8 @@ from qr_back_game.config import GameConfig
 from qr_back_game.residual_enemy_env import ResidualPPOWithEnemyEnv as ResidualEnv
 
 
-def run_one_episode(model, seed, args):
-    enemy_PPO = args.enemy_ppo
+def run_one_episode(model, seed, args, enemy_model=None):
+    enemy_PPO = enemy_model is not None
     env = ResidualEnv(render_mode="human")
     # env = ResidualEnv(cfg=GameConfig(enemy_moves=False), render_mode="human")
 
@@ -39,7 +39,9 @@ def run_one_episode(model, seed, args):
 
         if enemy_PPO:
             action, _ = model.predict(obs, deterministic=args.deterministic)
-            enemy_action, _ = model.predict(enemy_obs, deterministic=args.deterministic)
+            enemy_action, _ = enemy_model.predict(
+                enemy_obs, deterministic=args.deterministic
+            )
             (obs, enemy_obs), (reward, enemy_reward), done, info = env.step(
                 action, enemy_action
             )
@@ -114,15 +116,25 @@ def main():
     parser.add_argument("--fps", type=float, default=5.0)
     parser.add_argument("--hold-seconds", type=float, default=2.0)
     parser.add_argument("--deterministic", action="store_true")
-    parser.add_argument("--enemy-ppo", action="store_true")
+    parser.add_argument("--enemy-model", type=str, nargs="?", const="", default=None)
     args = parser.parse_args()
 
     model = PPO.load(args.model)
 
+    enemy_model = (
+        None  # 指定されないならNone
+        if args.enemy_model is None
+        else (
+            model  # 指定されただけなら自機と同じ
+            if args.enemy_model == ""
+            else PPO.load(args.enemy_model)  # 特に指定されたらそれを使う
+        )
+    )
+
     results = []
 
     for seed in range(args.start_seed, args.start_seed + args.num_seeds):
-        result = run_one_episode(model, seed, args)
+        result = run_one_episode(model, seed, args, enemy_model)
         results.append(result)
 
     print()

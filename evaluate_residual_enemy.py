@@ -64,11 +64,18 @@ def eval_residual(model_path, episodes, max_steps, seed, render=False):
     return counts, steps_list
 
 
-def eval_residual_both(model_path, episodes, max_steps, seed, render=False):
+def eval_residual_both(
+    model_path, episodes, max_steps, seed, render=False, enemy_model_path=None
+):
     cfg = GameConfig(random_start=True, max_steps=max_steps)
     # cfg = GameConfig(random_start=True, max_steps=max_steps, enemy_moves=False)
     env = ResidualPPOWithEnemyEnv(cfg=cfg, render_mode="human" if render else None)
     model = PPO.load(model_path)
+    enemy_model = (
+        model  # 指定されないなら自機と同じ
+        if enemy_model_path is None
+        else PPO.load(enemy_model_path)  # 指定されたらそれを使う
+    )
     counts = {0: 0, 1: 0, "draw": 0}
     steps_list = []
     for ep in range(episodes):
@@ -79,7 +86,7 @@ def eval_residual_both(model_path, episodes, max_steps, seed, render=False):
         step = 0
         while not done and step < max_steps:
             action, _ = model.predict(obs, deterministic=True)
-            enemy_action, _ = model.predict(enemy_obs, deterministic=True)
+            enemy_action, _ = enemy_model.predict(enemy_obs, deterministic=True)
             (obs, enemy_obs), _, done, info = env.step(action, enemy_action)
             if render:
                 env.render()
@@ -117,6 +124,7 @@ def main():
     parser.add_argument("--seed", type=int, default=1000)
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--skip-baseline", action="store_true")
+    parser.add_argument("--enemy-model", type=str, default=None)
     args = parser.parse_args()
 
     if not args.skip_baseline:
